@@ -9,13 +9,14 @@ The module is added to nginx at compile time via `-add-module` configure argumen
 
 # Patching NGINX to use JA4 Module
 
-We have a fork in our BitBucket which contains a branch `ja4` which applies a patch to use the module. The original patch is from darksail-ai, but its been modified to fix a [deathloop](https://github.com/darksail-ai/nginx/blob/darksail-mod/src/event/ngx_event_openssl.c#L1906-L1920): 
+We have this NGINX for which contains branches `ja4-X.Y.Z` which is a specific patched version of nginx. The original patch is from darksail-ai, but its been modified to fix a [deathloop](https://github.com/darksail-ai/nginx/blob/darksail-mod/src/event/ngx_event_openssl.c#L1906-L1920): 
 
 Generally patches are long lived, but if there are changes in the same areas as the JA4 patch touches in vanilla nginx, then you would see chunks failing to apply. And would need to re-integrate these.
 
 ## Forward Porting
 
-Forward porting is the act of taking a feature implementation for a older version of software, and re-applying it to a future version, and resolving conflicts. 
+When we have a new version of NGINX, the patch should work, as its not so intrusive, but if there are issues in patch chunks, forward porting might
+be required.
 
 Here is a overview of how to achieve this.
 
@@ -36,6 +37,9 @@ git add src/http/modules/ngx_http_ssl_module.c
 Now resolve any issues in the patching if required.
 
 ### Generate the Patch
+
+Generate a patch, review and adapt as needed. 
+
 ```bash
 git diff release-${NGINX_UPGRADE_VERSION} ':(exclude)README.md' | tee ja4.patch
 ```
