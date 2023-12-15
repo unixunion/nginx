@@ -1,6 +1,6 @@
 # NGINX JA4 Module
 
-The module source is taken from [darksail-ai](https://bitbucket.kindredgroup.com/bitbucket/projects/CDS/repos/nginx-dd/browse/nginx-centos7/src/nginx-mod_ja4, it was taken from https://github.com/darksail-ai/nginx/tree/darksail-mod/module), it has not been modified at time of writing this. 15 Dec 2023
+The module source is taken from [darksail-ai](https://bitbucket.kindredgroup.com/bitbucket/projects/CDS/repos/nginx-dd/browse/nginx-centos7/src/nginx-mod_ja4), it was taken from [darksail-mod](https://github.com/darksail-ai/nginx/tree/darksail-mod/module), it has not been modified at time of writing this. 15 Dec 2023
 
 
 The module is added to nginx via `-add-module` configure arg as can be seen in [build.sh](https://bitbucket.kindredgroup.com/bitbucket/projects/CDS/repos/nginx-dd/browse/nginx-centos7/scripts/build.sh#129-162)
