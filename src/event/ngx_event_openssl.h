@@ -119,6 +119,19 @@ struct ngx_ssl_connection_s {
     unsigned                    in_ocsp:1;
     unsigned                    early_preread:1;
     unsigned                    write_blocked:1;
+
+    // ja4 stuff
+    int             version;
+
+    size_t          ciphers_sz;
+    unsigned short *ciphers;
+
+    size_t          extensions_sz;
+    unsigned short *extensions;
+
+    // ja4l stuff
+    uint16_t handshake_roundtrip_microseconds; // a whole number - max is probably thousands
+    uint8_t ttl;                // time to live - a whole number - max is 255
 };
 
 

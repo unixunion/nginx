@@ -1707,6 +1707,88 @@ ngx_ssl_set_session(ngx_connection_t *c, ngx_ssl_session_t *session)
     return NGX_OK;
 }
 
+// TODO: adds ja4 stuff to the ssl object to be calculated later
+void
+ngx_SSL_client_features(ngx_connection_t *c) {
+
+    unsigned short                *ciphers_out = NULL;
+    size_t                         len = 0;
+    SSL                           *s = NULL;
+
+    if (c == NULL) {
+        return;
+    }
+    s = c->ssl->connection;
+
+    /* Cipher suites */
+    c->ssl->ciphers = NULL;
+    c->ssl->ciphers_sz = SSL_get0_raw_cipherlist(s, &ciphers_out);
+    c->ssl->ciphers_sz /= 2;
+
+    if (c->ssl->ciphers_sz && ciphers_out) {
+        len = c->ssl->ciphers_sz * sizeof(unsigned short);
+        c->ssl->ciphers = ngx_pnalloc(c->pool, len);
+        ngx_memcpy(c->ssl->ciphers, ciphers_out, len);
+    }
+}
+// TODO: this is the extensions part need to check this ja4 extension hack
+int
+ngx_SSL_early_cb_fn(SSL *s, int *al, void *arg) {
+
+    int                            got_extensions;
+    int                           *ext_out;
+    size_t                         ext_len;
+    ngx_connection_t              *c;
+
+    c = arg;
+
+    if (c == NULL) {
+        return 1;
+    }
+
+    if (c->ssl == NULL) {
+        return 1;
+    }
+
+    c->ssl->extensions_sz = 0;
+    c->ssl->extensions = NULL;
+    got_extensions = SSL_client_hello_get1_extensions_present(s,
+                                                       &ext_out,
+                                                       &ext_len);
+
+    // log extensions
+    for (size_t i = 0; i < ext_len; i++) {
+        ngx_log_debug2(NGX_LOG_DEBUG_EVENT, c->log, 0, "ext_out[%z] = %d", i, ext_out[i]);
+    }
+
+    if (!got_extensions) {
+        return 1;
+    }
+    if (!ext_out) {
+        return 1;
+    }
+    if (!ext_len) {
+        return 1;
+    }
+
+    c->ssl->extensions = ngx_palloc(c->pool, sizeof(unsigned short) * ext_len);
+    if (c->ssl->extensions != NULL) {
+        for (size_t i = 0; i < ext_len; i++) {
+            c->ssl->extensions[i] = (unsigned short) ext_out[i];
+        }
+        c->ssl->extensions_sz = ext_len;
+    }
+
+    // now log c->ssl->extensions
+    for (size_t i = 0; i < ext_len; i++) {
+        ngx_log_debug2(NGX_LOG_DEBUG_EVENT, c->log, 0, "c->ssl->extensions[%z] = %d", i, c->ssl->extensions[i]);
+    }
+
+    OPENSSL_free(ext_out);
+
+    return 1;
+}
+
 
 ngx_int_t
 ngx_ssl_handshake(ngx_connection_t *c)
@@ -1726,8 +1808,42 @@ ngx_ssl_handshake(ngx_connection_t *c)
     }
 
     ngx_ssl_clear_error(c->log);
+    
+    // client hello callback function on the session context
+    SSL_CTX_set_client_hello_cb(c->ssl->session_ctx, ngx_SSL_early_cb_fn, c);   
+
+    // init time structs in a perfectly reasonable location
+    struct timeval tv_start, tv_end;
 
     n = SSL_do_handshake(c->ssl->connection);
+    if (n == 1) {
+        // the handshake was good
+
+         // Compute the elapsed time in microseconds
+        long elapsed_time = (tv_end.tv_sec - tv_start.tv_sec) * 1000000L;  // convert seconds to microseconds
+        elapsed_time += (tv_end.tv_usec - tv_start.tv_usec);  // add the microsecond component
+        
+        // log start time
+        ngx_log_debug2(NGX_LOG_DEBUG_EVENT, c->log, 0, "SSL_do_handshake1 start time: %ld.%06ld", tv_start.tv_sec, tv_start.tv_usec);
+        // log end time
+        ngx_log_debug2(NGX_LOG_DEBUG_EVENT, c->log, 0, "SSL_do_handshake1 end time: %ld.%06ld", tv_end.tv_sec, tv_end.tv_usec);
+        // Log the elapsed time
+        ngx_log_debug1(NGX_LOG_DEBUG_EVENT, c->log, 0, "SSL_do_handshake1 time: %ld", elapsed_time);
+
+        c->ssl->handshake_roundtrip_microseconds = elapsed_time;
+        c->ssl->ttl = 1;
+        ngx_log_debug1(NGX_LOG_DEBUG_EVENT, c->log, 0, "SSL_do_handshake block statement: %d", n);
+
+        // calculate ja4 stuff
+        ngx_SSL_client_features(c);
+
+    } else {
+        // handshake was bad, lets notify
+        int err = SSL_get_error(c->ssl->connection, n);
+        if (err != SSL_ERROR_WANT_READ && err != SSL_ERROR_WANT_WRITE) {
+            return NGX_AGAIN;
+        }
+    }
 
     ngx_log_debug1(NGX_LOG_DEBUG_EVENT, c->log, 0, "SSL_do_handshake: %d", n);
 
