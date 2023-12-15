@@ -28,9 +28,12 @@ git checkout ja4-${NGINX_CURRENT_VERSION}
 git remote add upstream https://github.com/nginx/nginx.git
 git fetch upstream --tags
 git pull upstream release-${NGINX_UPGRADE_VERSION}
+git checkout -b ja4-${NGINX_UPGRADE_VERSION}
 git add src/event/ngx_event_openssl.c                                                                                                  git:ja4-1.21.4*
 git add src/event/ngx_event_openssl.h                                                                                                  git:ja4-1.21.4*
 git add src/http/modules/ngx_http_ssl_module.c 
+git commit -m "Patched for version ${NGINX_UPGRADE_VERSION}"
+git push --set-upstream origin ja4-${NGINX_UPGRADE_VERSION}
 ```
 
 Now resolve any issues in the patching if required.
